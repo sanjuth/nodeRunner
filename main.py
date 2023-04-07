@@ -12,7 +12,8 @@ app = FastAPI()
 class TimerThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
-        random_num = random.randint(5, 15)
+        random_num = random.randint(10, 20)
+        print(random_num)
         self.interval = random_num
         self.timer = None
 
@@ -25,10 +26,10 @@ class TimerThread(threading.Thread):
             # print(time() - last_request_time)
             if time() - last_request_time > self.interval:
                 print("Timed Out Asking for Votes ------------------------")
-                try:
-                    node.request_vote([0,1,2,3,4])    
-                except:
-                    print("req failed")
+                # try:
+                node.request_vote([0,1,2,3,4])    
+                # except:
+                #     print("req failed")
                 self.timer.cancel()
                 self.timer = threading.Timer(self.interval, self.run)
                 self.timer.start()
@@ -46,6 +47,9 @@ def run_server():
         print(res)
         return res
 
+    @app.post("/AppendEntries")
+    async def recieveAE(req:Request):
+        return "ok"
     
     uvicorn.run(app, host="0.0.0.0", port=port)
 

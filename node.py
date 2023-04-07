@@ -10,6 +10,7 @@ class Node:
         self.votedFor = None
         self.log = []
         self.state="follower"
+
         # Volatile state
         self.commitIndex = 0
         self.lastApplied = 0
@@ -49,7 +50,7 @@ class Node:
     
 
     def send_append_entries(self, server_id):
-        if len(self.logs) == 0:
+        if len(self.log) == 0:
             prev_log_index = -1
             prev_log_term = -1
             entries = []
@@ -87,9 +88,9 @@ class Node:
                     break
 
     
-    def send_rpc_append_entries(id,message):
+    def send_rpc_append_entries(self,id,message):
         headers = {"Content-Type": "application/json"}
-        response = requests.post(endpoint, data=json.dumps(message), headers=headers)
+        response = requests.post(f"http://localhost:800{id}/AppendEntries", data=json.dumps(message), headers=headers)
         response.raise_for_status()
         return response.json()
     
@@ -114,7 +115,6 @@ class Node:
     
 
 
-
     def request_vote(self,nodes=[0,1,2,3,4]):
         self.currentTerm += 1
         self.state = 'candidate'
@@ -129,23 +129,30 @@ class Node:
                 "last_log_index": len(self.log) - 1,
                 "last_log_term": 0 if len(self.log)==0 else self.log[-1]['term']
             }
-            rpc_result = self.send_rpc_request_vote(node_id,message)
+            try:
+                rpc_result = self.send_rpc_request_vote(node_id,message)
+                print(rpc_result)
+                if rpc_result[0] > self.currentTerm:
+                    self.currentTerm = rpc_result[0]
+                    self.state = 'follower'
+                    return
+                if rpc_result[1]:
+                    vote_count += 1
+            except:
+                print(f"vote req to 800{node_id} failed")
+            
 
-            if rpc_result['term'] > self.currentTerm:
-                self.currentTerm = rpc_result['term']
-                self.state = 'follower'
-                return
-
-            if rpc_result['vote_granted']:
-                vote_count += 1
-
-        if vote_count > len(self.nodes) // 2:
+        if vote_count > len(nodes) // 2:
+        # if vote_count >= 1:
             print("BECAME LEADER ")
             self.state = 'leader'
-            self.leader_id = self.node_id
-            self.nextIndex = [len(self.logs)] * len(self.nodes)
-            self.matchIndex = [0] * len(self.nodes)
-            self.send_rpc_append_entries()
+            self.leader_id = node_id
+            self.nextIndex = [len(self.log)] * len(nodes)
+            self.matchIndex = [0] * len(nodes)
+            i=0
+            while True:
+                self.send_append_entries(i%4)
+                i+=1
 
 
     def send_rpc_request_vote(self,id,message):
